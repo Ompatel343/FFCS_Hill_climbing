@@ -1,5 +1,4 @@
-# 5th version
-
+# 6th version
 
 import random
 import copy
@@ -230,62 +229,71 @@ def slot_in_time(slot_option, desired_time):
     for _, start, _ in times:
         start_min = time_to_minutes(start)
         if desired_time == 'morning':
-            if start_min >= 840:  # 14:00 in minutes
+            if start_min >= 900:  # Relaxed constraint
                 return False
         elif desired_time == 'evening':
-            if start_min < 840:
+            if start_min < 600:  # Relaxed constraint
                 return False
     return True
 
-def generate_initial_timetable():
-    for theory_time in ['morning', 'evening']:
-        lab_time = 'evening' if theory_time == 'morning' else 'morning'
-        timetable = {}
-        schedule = {}
-        failed = False
-        
-        # Schedule theory courses
-        theory_courses = [course for course in COURSES if course not in LAB_TO_THEORY]
-        for course in theory_courses:
-            slot_options = [opt for opt in COURSES[course] if slot_in_time(opt, theory_time)]
-            if not slot_options:
-                failed = True
-                break
-            random.shuffle(slot_options)
-            for slot_option in slot_options:
-                times = parse_slot_times(slot_option.split('+'))
-                if not schedule_conflict(schedule, times):
-                    timetable[course] = slot_option
-                    add_to_schedule(schedule, times)
+def generate_initial_timetable(attempts=10):
+    for attempt in range(attempts):
+        print(f"Attempt {attempt + 1} to generate timetable...")
+        for theory_time in ['morning', 'evening']:
+            lab_time = 'evening' if theory_time == 'morning' else 'morning'
+            timetable = {}
+            schedule = {}
+            failed = False
+            
+            # Schedule theory courses
+            theory_courses = [course for course in COURSES if course not in LAB_TO_THEORY]
+            for course in theory_courses:
+                slot_options = [opt for opt in COURSES[course] if slot_in_time(opt, theory_time)]
+                if not slot_options:
+                    print(f"No slot options found for {course} during {theory_time}")
+                    failed = True
                     break
-            else:
-                failed = True
-                break
-        
-        if failed:
-            continue  # Try the other theory_time
+                random.shuffle(slot_options)
+                for slot_option in slot_options:
+                    times = parse_slot_times(slot_option.split('+'))
+                    if not schedule_conflict(schedule, times):
+                        timetable[course] = slot_option
+                        add_to_schedule(schedule, times)
+                        break
+                else:
+                    print(f"Could not fit {course} in the timetable.")
+                    failed = True
+                    break
+            
+            if failed:
+                continue  # Try the other theory_time
 
-        # Schedule lab courses
-        lab_courses = [course for course in COURSES if course in LAB_TO_THEORY]
-        for course in lab_courses:
-            slot_options = [opt for opt in COURSES[course] if slot_in_time(opt, lab_time)]
-            if not slot_options:
-                failed = True
-                break
-            random.shuffle(slot_options)
-            for slot_option in slot_options:
-                times = parse_slot_times(slot_option.split('+'))
-                if not schedule_conflict(schedule, times):
-                    timetable[course] = slot_option
-                    add_to_schedule(schedule, times)
+            # Schedule lab courses
+            lab_courses = [course for course in COURSES if course in LAB_TO_THEORY]
+            for course in lab_courses:
+                # Remove the morning/evening constraint for labs
+                slot_options = [opt for opt in COURSES[course]]
+                if not slot_options:
+                    print(f"No lab slot options found for {course}")
+                    failed = True
                     break
-            else:
-                failed = True
-                break
-        
-        if not failed:
-            return timetable, schedule
+                random.shuffle(slot_options)
+                for slot_option in slot_options:
+                    times = parse_slot_times(slot_option.split('+'))
+                    if not schedule_conflict(schedule, times):
+                        timetable[course] = slot_option
+                        add_to_schedule(schedule, times)
+                        break
+                else:
+                    print(f"Could not fit {course} lab in the timetable.")
+                    failed = True
+                    break
+
+            if not failed:
+                print("Successfully generated a timetable.")
+                return timetable, schedule
     
+    print("Failed to generate a valid timetable after several attempts.")
     return None, None
 
 def hill_climbing(timetable, schedule):
@@ -297,33 +305,23 @@ def hill_climbing(timetable, schedule):
     while True:
         neighbors = []
         for course in current_timetable:
-            # Skip if course has only one slot option
             if len(COURSES[course]) <= 1:
                 continue
             current_slot_option = current_timetable[course]
             for slot_option in COURSES[course]:
                 if slot_option != current_slot_option:
-                    # Check time of day constraint
                     if course in LAB_TO_THEORY:
-                        # Lab course
                         theory_course = LAB_TO_THEORY[course]
                         theory_slot_option = current_timetable[theory_course]
                         if slot_in_time(theory_slot_option, 'morning'):
                             desired_lab_time = 'evening'
                         else:
                             desired_lab_time = 'morning'
-                        if not slot_in_time(slot_option, desired_lab_time):
-                            continue
-                    else:
-                        # Theory course
-                        if not slot_in_time(slot_option, 'morning') and not slot_in_time(slot_option, 'evening'):
-                            continue
+                        # Allow lab slots in both morning and evening
                     new_timetable = copy.deepcopy(current_timetable)
                     new_schedule = copy.deepcopy(current_schedule)
-                    # Remove current times
                     old_times = parse_slot_times(current_slot_option.split('+'))
                     remove_from_schedule(new_schedule, old_times)
-                    # Add new times
                     new_times = parse_slot_times(slot_option.split('+'))
                     if not schedule_conflict(new_schedule, new_times):
                         new_timetable[course] = slot_option
@@ -344,8 +342,8 @@ def hill_climbing(timetable, schedule):
             break
     return current_timetable, current_schedule
 
-def print_timetable(timetable, schedule):
-    print("\nOptimized Timetable:")
+def print_timetable(timetable, schedule, title):
+    print(f"\n{title}:")
     for course, slot_option in timetable.items():
         times = parse_slot_times(slot_option.split('+'))
         print(f"{course}:")
@@ -357,9 +355,12 @@ def print_timetable(timetable, schedule):
 # Generate initial timetable
 timetable, schedule = generate_initial_timetable()
 if timetable:
+    # Print the initial timetable
+    print_timetable(timetable, schedule, "Initial Timetable")
     # Optimize timetable using hill climbing
     optimized_timetable, optimized_schedule = hill_climbing(timetable, schedule)
     # Print the optimized timetable
-    print_timetable(optimized_timetable, optimized_schedule)
+    print_timetable(optimized_timetable, optimized_schedule, "Optimized Timetable")
 else:
     print("Failed to generate an initial timetable.")
+
