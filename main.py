@@ -1,284 +1,365 @@
+# 5th version
+
+
+import random
 import copy
-from collections import defaultdict
-
-# Days of the week
-DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI']
-
-# Time conversion functions
-def time_to_minutes(time_str):
-    hours, minutes = map(int, time_str.split(':'))
-    return hours * 60 + minutes
 
 # Sample courses with their respective slots
 COURSES = {
-    'ARTIFICIAL INTELLIGENCE': ['E1+TE1'],
-    'OPERATING SYSTEMS': ['B1+TB1'],
+    'ARTIFICIAL INTELLIGENCE': ['E1+TE1', 'E2+TE2'],
+    'OPERATING SYSTEMS': ['B1+TB1', 'B2+TB2'],
     'OPERATING SYSTEMS LAB': [
-        'L1+L2', 'L7+L8', 'L13+L14', 'L19+L20', 'L25+L26'
+        'L31+L32', 'L33+L34', 'L35+L36', 'L37+L38', 'L39+L40',
+        'L41+L42', 'L43+L44', 'L45+L46', 'L47+L48', 'L49+L50',
+        'L51+L52', 'L53+L54', 'L55+L56', 'L57+L58', 'L59+L60',
+        'L1+L2', 'L3+L4', 'L5+L6', 'L7+L8', 'L9+L10',
+        'L11+L12', 'L13+L14', 'L15+L16', 'L17+L18', 'L19+L20',
+        'L21+L22', 'L23+L24', 'L25+L26', 'L27+L28', 'L29+L30'
     ],
-    'AWS SOLUTIONS ARCHITECT': ['F1+TF1'],
-    'COMPILER DESIGN': ['C1+TC1'],
+    'AWS SOLUTIONS ARCHITECT': ['F1+TF1', 'F2+TF2'],
+    'COMPILER DESIGN': ['C1+TC1', 'C2+TC2'],
     'COMPILER DESIGN LAB': [
-        'L3+L4', 'L9+L10', 'L15+L16', 'L21+L22', 'L27+L28'
+        'L31+L32', 'L33+L34', 'L35+L36', 'L37+L38', 'L39+L40',
+        'L41+L42', 'L43+L44', 'L45+L46', 'L47+L48', 'L49+L50',
+        'L51+L52', 'L53+L54', 'L55+L56', 'L57+L58', 'L59+L60',
+        'L1+L2', 'L3+L4', 'L5+L6', 'L7+L8', 'L9+L10',
+        'L11+L12', 'L13+L14', 'L15+L16', 'L17+L18', 'L19+L20',
+        'L21+L22', 'L23+L24', 'L25+L26', 'L27+L28', 'L29+L30'
     ],
-    'DATABASE SYSTEMS': ['A1+TA1'],
+    'DATABASE SYSTEMS': ['A1+TA1', 'A2+TA2'],
     'DATABASE SYSTEMS LAB': [
-        'L5+L6', 'L11+L12', 'L17+L18', 'L23+L24', 'L29+L30'
+        'L31+L32', 'L33+L34', 'L35+L36', 'L37+L38', 'L39+L40',
+        'L41+L42', 'L43+L44', 'L45+L46', 'L47+L48', 'L49+L50',
+        'L51+L52', 'L53+L54', 'L55+L56', 'L57+L58', 'L59+L60',
+        'L1+L2', 'L3+L4', 'L5+L6', 'L7+L8', 'L9+L10',
+        'L11+L12', 'L13+L14', 'L15+L16', 'L17+L18', 'L19+L20',
+        'L21+L22', 'L23+L24', 'L25+L26', 'L27+L28', 'L29+L30'
     ],
-    'COMPUTER NETWORKS': ['D1+TD1'],
+    'COMPUTER NETWORKS': ['D1+TD1', 'D2+TD2'],
     'COMPUTER NETWORKS LAB': [
-        'L1+L2', 'L7+L8', 'L13+L14', 'L19+L20', 'L25+L26'
-    ]
+        'L31+L32', 'L33+L34', 'L35+L36', 'L37+L38', 'L39+L40',
+        'L41+L42', 'L43+L44', 'L45+L46', 'L47+L48', 'L49+L50',
+        'L51+L52', 'L53+L54', 'L55+L56', 'L57+L58', 'L59+L60',
+        'L1+L2', 'L3+L4', 'L5+L6', 'L7+L8', 'L9+L10',
+        'L11+L12', 'L13+L14', 'L15+L16', 'L17+L18', 'L19+L20',
+        'L21+L22', 'L23+L24', 'L25+L26', 'L27+L28', 'L29+L30'
+    ],
+    'ADVANCED COMPETITIVE CODING': ['G1+TG1', 'G2+TG2']
 }
 
-# Timing details for theory slots
+# Theory slot timings with multiple entries per slot
 THEORY_SLOTS = {
-    'A1': [('MON', '08:00', '08:50'), ('WED', '09:51', '10:40')],
-    'TA1': [('FRI', '10:41', '11:30')],
-    'B1': [('TUE', '08:00', '08:50'), ('THU', '09:51', '10:40')],
-    'TB1': [('MON', '10:41', '11:30')],
-    'C1': [('WED', '08:00', '08:50'), ('FRI', '09:51', '10:40')],
-    'TC1': [('TUE', '10:41', '11:30')],
-    'D1': [('THU', '08:00', '08:50'), ('MON', '09:51', '10:40')],
-    'TD1': [('FRI', '12:31', '13:20')],
-    'E1': [('FRI', '08:00', '08:50'), ('TUE', '09:51', '10:40')],
-    'TE1': [('THU', '10:41', '11:30')],
-    'F1': [('MON', '08:51', '09:40'), ('WED', '09:51', '10:40')],
-    'TF1': [('FRI', '11:40', '12:30')],
+    'A1': [('MON', '08:00', '08:50'), ('WED', '09:00', '09:50')],
+    'TA1': [('FRI', '10:00', '10:50')],
+    'B1': [('TUE', '08:00', '08:50'), ('THU', '09:00', '09:50')],
+    'TB1': [('MON', '11:00', '11:50')],
+    'C1': [('WED', '08:00', '08:50'), ('FRI', '09:00', '09:50')],
+    'TC1': [('TUE', '11:00', '11:50')],
+    'D1': [('THU', '08:00', '08:50'), ('MON', '10:00', '10:50')],
+    'TD1': [('FRI', '12:00', '12:50')],
+    'E1': [('FRI', '08:00', '08:50'), ('TUE', '10:00', '10:50')],
+    'TE1': [('THU', '11:00', '11:50')],
+    'F1': [('MON', '09:00', '09:50'), ('WED', '10:00', '10:50')],
+    'TF1': [('FRI', '11:00', '11:50')],
+    'G1': [('TUE', '09:00', '09:50'), ('THU', '10:00', '10:50')],
+    'TG1': [('MON', '12:00', '12:50')],
+    # Evening slots
+    'A2': [('MON', '14:00', '14:50'), ('THU', '17:00', '17:50')],
+    'TA2': [('FRI', '16:00', '16:50')],
+    'B2': [('WED', '14:00', '14:50'), ('THU', '18:00', '18:50')],
+    'TB2': [('FRI', '17:00', '17:50')],
+    'C2': [('THU', '14:00', '14:50'), ('FRI', '18:00', '18:50')],
+    'TC2': [('WED', '17:00', '17:50')],
+    'D2': [('MON', '16:00', '16:50'), ('FRI', '14:00', '14:50')],
+    'TD2': [('THU', '19:00', '19:50')],
+    'E2': [('TUE', '16:00', '16:50'), ('FRI', '14:00', '14:50')],
+    'TE2': [('THU', '17:00', '17:50')],
+    'F2': [('MON', '17:00', '17:50'), ('WED', '16:00', '16:50')],
+    'TF2': [('THU', '15:00', '15:50')],
+    'G2': [('MON', '15:00', '15:50'), ('FRI', '16:00', '16:50')],
+    'TG2': [('WED', '18:00', '18:50')]
 }
 
-# Define lab time slots (including Monday through Friday)
+# Lab slot timings (L1-L60)
 LAB_SLOTS = {
-    # MONDAY
-    'L1': [('MON', '08:00', '08:50')],
-    'L2': [('MON', '08:51', '09:40')],
-    'L3': [('MON', '09:51', '10:40')],
-    'L4': [('MON', '10:41', '11:30')],
-    'L5': [('MON', '11:40', '12:30')],
-    'L6': [('MON', '12:31', '13:20')],
-    # TUESDAY
-    'L7': [('TUE', '08:00', '08:50')],
-    'L8': [('TUE', '08:51', '09:40')],
-    'L9': [('TUE', '09:51', '10:40')],
-    'L10': [('TUE', '10:41', '11:30')],
-    'L11': [('TUE', '11:40', '12:30')],
-    'L12': [('TUE', '12:31', '13:20')],
-    # WEDNESDAY
-    'L13': [('WED', '08:00', '08:50')],
-    'L14': [('WED', '08:51', '09:40')],
-    'L15': [('WED', '09:51', '10:40')],
-    'L16': [('WED', '10:41', '11:30')],
-    'L17': [('WED', '11:40', '12:30')],
-    'L18': [('WED', '12:31', '13:20')],
-    # THURSDAY
-    'L19': [('THU', '08:00', '08:50')],
-    'L20': [('THU', '08:51', '09:40')],
-    'L21': [('THU', '09:51', '10:40')],
-    'L22': [('THU', '10:41', '11:30')],
-    'L23': [('THU', '11:40', '12:30')],
-    'L24': [('THU', '12:31', '13:20')],
-    # FRIDAY
-    'L25': [('FRI', '08:00', '08:50')],
-    'L26': [('FRI', '08:51', '09:40')],
-    'L27': [('FRI', '09:51', '10:40')],
-    'L28': [('FRI', '10:41', '11:30')],
-    'L29': [('FRI', '11:40', '12:30')],
-    'L30': [('FRI', '12:31', '13:20')],
+    # MONDAY MORNING
+    'L1': ('MON', '08:00', '08:50'),
+    'L2': ('MON', '08:51', '09:40'),
+    'L3': ('MON', '09:51', '10:40'),
+    'L4': ('MON', '10:41', '11:30'),
+    'L5': ('MON', '11:40', '12:30'),
+    'L6': ('MON', '12:31', '13:20'),
+
+    # TUESDAY MORNING
+    'L7': ('TUE', '08:00', '08:50'),
+    'L8': ('TUE', '08:51', '09:40'),
+    'L9': ('TUE', '09:51', '10:40'),
+    'L10': ('TUE', '10:41', '11:30'),
+    'L11': ('TUE', '11:40', '12:30'),
+    'L12': ('TUE', '12:31', '13:20'),
+
+    # WEDNESDAY MORNING
+    'L13': ('WED', '08:00', '08:50'),
+    'L14': ('WED', '08:51', '09:40'),
+    'L15': ('WED', '09:51', '10:40'),
+    'L16': ('WED', '10:41', '11:30'),
+    'L17': ('WED', '11:40', '12:30'),
+    'L18': ('WED', '12:31', '13:20'),
+
+    # THURSDAY MORNING
+    'L19': ('THU', '08:00', '08:50'),
+    'L20': ('THU', '08:51', '09:40'),
+    'L21': ('THU', '09:51', '10:40'),
+    'L22': ('THU', '10:41', '11:30'),
+    'L23': ('THU', '11:40', '12:30'),
+    'L24': ('THU', '12:31', '13:20'),
+
+    # FRIDAY MORNING
+    'L25': ('FRI', '08:00', '08:50'),
+    'L26': ('FRI', '08:51', '09:40'),
+    'L27': ('FRI', '09:51', '10:40'),
+    'L28': ('FRI', '10:41', '11:30'),
+    'L29': ('FRI', '11:40', '12:30'),
+    'L30': ('FRI', '12:31', '13:20'),
+
+    # MONDAY AFTERNOON
+    'L31': ('MON', '14:00', '14:50'),
+    'L32': ('MON', '14:51', '15:40'),
+    'L33': ('MON', '15:51', '16:40'),
+    'L34': ('MON', '16:41', '17:30'),
+    'L35': ('MON', '17:40', '18:30'),
+    'L36': ('MON', '18:31', '19:20'),
+
+    # TUESDAY AFTERNOON
+    'L37': ('TUE', '14:00', '14:50'),
+    'L38': ('TUE', '14:51', '15:40'),
+    'L39': ('TUE', '15:51', '16:40'),
+    'L40': ('TUE', '16:41', '17:30'),
+    'L41': ('TUE', '17:40', '18:30'),
+    'L42': ('TUE', '18:31', '19:20'),
+
+    # WEDNESDAY AFTERNOON
+    'L43': ('WED', '14:00', '14:50'),
+    'L44': ('WED', '14:51', '15:40'),
+    'L45': ('WED', '15:51', '16:40'),
+    'L46': ('WED', '16:41', '17:30'),
+    'L47': ('WED', '17:40', '18:30'),
+    'L48': ('WED', '18:31', '19:20'),
+
+    # THURSDAY AFTERNOON
+    'L49': ('THU', '14:00', '14:50'),
+    'L50': ('THU', '14:51', '15:40'),
+    'L51': ('THU', '15:51', '16:40'),
+    'L52': ('THU', '16:41', '17:30'),
+    'L53': ('THU', '17:40', '18:30'),
+    'L54': ('THU', '18:31', '19:20'),
+
+    # FRIDAY AFTERNOON
+    'L55': ('FRI', '14:00', '14:50'),
+    'L56': ('FRI', '14:51', '15:40'),
+    'L57': ('FRI', '15:51', '16:40'),
+    'L58': ('FRI', '16:41', '17:30'),
+    'L59': ('FRI', '17:40', '18:30'),
+    'L60': ('FRI', '18:31', '19:20'),
 }
 
-def get_slot_timings(slot):
-    """Retrieve the timings for a given slot."""
-    if slot in THEORY_SLOTS:
-        return THEORY_SLOTS[slot]
-    elif slot in LAB_SLOTS:
-        return LAB_SLOTS[slot]
-    else:
-        return []
+# Map lab courses to their corresponding theory courses
+LAB_TO_THEORY = {
+    'OPERATING SYSTEMS LAB': 'OPERATING SYSTEMS',
+    'COMPILER DESIGN LAB': 'COMPILER DESIGN',
+    'DATABASE SYSTEMS LAB': 'DATABASE SYSTEMS',
+    'COMPUTER NETWORKS LAB': 'COMPUTER NETWORKS'
+}
 
-def is_conflict(timetable, timings):
-    """Check if any of the timings conflict with the existing timetable."""
-    for timing in timings:
-        day, start_time, end_time = timing[0], timing[1], timing[2]
-        for scheduled in timetable.get(day, []):
-            # Check for overlap
-            s_start = time_to_minutes(scheduled[1])
-            s_end = time_to_minutes(scheduled[2])
-            t_start = time_to_minutes(start_time)
-            t_end = time_to_minutes(end_time)
-            if not (t_end <= s_start or t_start >= s_end):
+def time_to_minutes(time_str):
+    h, m = map(int, time_str.split(':'))
+    return h * 60 + m
+
+def parse_slot_times(slot_names):
+    times = []
+    for slot_name in slot_names:
+        if slot_name in THEORY_SLOTS:
+            for day, start, end in THEORY_SLOTS[slot_name]:
+                times.append((day, start, end))
+        elif slot_name in LAB_SLOTS:
+            day, start, end = LAB_SLOTS[slot_name]
+            times.append((day, start, end))
+        else:
+            print(f"Slot {slot_name} not found in THEORY_SLOTS or LAB_SLOTS.")
+    return times
+
+def times_overlap(t1_start, t1_end, t2_start, t2_end):
+    return max(t1_start, t2_start) < min(t1_end, t2_end)
+
+def schedule_conflict(schedule, new_times):
+    for day, start, end in new_times:
+        start_min = time_to_minutes(start)
+        end_min = time_to_minutes(end)
+        for existing_start, existing_end in schedule.get(day, []):
+            existing_start_min = time_to_minutes(existing_start)
+            existing_end_min = time_to_minutes(existing_end)
+            if times_overlap(start_min, end_min, existing_start_min, existing_end_min):
                 return True
     return False
 
-def backtrack_schedule(courses, course_list, index, timetable, course_assignments):
-    """Recursive function to schedule courses without conflicts."""
-    if index == len(course_list):
-        return True  # All courses scheduled
+def add_to_schedule(schedule, times):
+    for day, start, end in times:
+        if day not in schedule:
+            schedule[day] = []
+        schedule[day].append((start, end))
 
-    course = course_list[index]
-    slot_options = courses[course]
+def remove_from_schedule(schedule, times):
+    for day, start, end in times:
+        schedule[day].remove((start, end))
+        if not schedule[day]:
+            del schedule[day]
 
-    for slot_option in slot_options:
-        slots = slot_option.split('+')
-        timings_list = []
-        conflict = False
-        for slot in slots:
-            slot_timings = get_slot_timings(slot)
-            if not slot_timings:
-                conflict = True
-                break
-            # Add all timings for the slot
-            for timing in slot_timings:
-                timings_list.append((timing[0], timing[1], timing[2], course))
-        if conflict or is_conflict(timetable, timings_list):
-            continue
-
-        # No conflict, add timings to timetable
-        for timing in timings_list:
-            timetable.setdefault(timing[0], []).append(timing)
-        course_assignments[course] = timings_list
-
-        # Recurse to next course
-        if backtrack_schedule(courses, course_list, index + 1, timetable, course_assignments):
-            return True
-
-        # Backtrack
-        for timing in timings_list:
-            timetable[timing[0]].remove(timing)
-        del course_assignments[course]
-
-    return False  # No valid slot found
-
-def generate_initial_timetable():
-    """Generates an initial timetable using backtracking."""
-    timetable = {}
-    course_assignments = {}
-    course_list = list(COURSES.keys())
-
-    success = backtrack_schedule(COURSES, course_list, 0, timetable, course_assignments)
-    if success:
-        return timetable
-    else:
-        return None
-
-def calculate_gaps(timetable):
-    """Calculates the total number of 10-minute gaps in the timetable."""
+def compute_gaps(schedule):
     total_gaps = 0
-    for day in DAYS:
-        day_slots = []
-        for timing in timetable.get(day, []):
-            start = time_to_minutes(timing[1])
-            end = time_to_minutes(timing[2])
-            day_slots.append((start, end))
-        if not day_slots:
-            continue
-        day_slots.sort()
-        # Merge overlapping slots
-        merged_slots = [day_slots[0]]
-        for current in day_slots[1:]:
-            last = merged_slots[-1]
-            if current[0] <= last[1]:
-                merged_slots[-1] = (last[0], max(last[1], current[1]))
-            else:
-                merged_slots.append(current)
-        # Calculate gaps
-        for i in range(len(merged_slots) - 1):
-            gap = merged_slots[i + 1][0] - merged_slots[i][1]
+    for day in schedule:
+        times = schedule[day]
+        intervals = sorted([(time_to_minutes(start), time_to_minutes(end)) for start, end in times])
+        for i in range(len(intervals) - 1):
+            gap = intervals[i+1][0] - intervals[i][1]
             total_gaps += gap // 10
     return total_gaps
 
-def hill_climbing():
-    """Performs hill climbing to minimize gaps in the timetable."""
-    timetable = generate_initial_timetable()
-    if timetable is None:
-        print("Failed to generate an initial timetable without conflicts.")
-        return None
+def slot_in_time(slot_option, desired_time):
+    slot_names = slot_option.split('+')
+    times = parse_slot_times(slot_names)
+    for _, start, _ in times:
+        start_min = time_to_minutes(start)
+        if desired_time == 'morning':
+            if start_min >= 840:  # 14:00 in minutes
+                return False
+        elif desired_time == 'evening':
+            if start_min < 840:
+                return False
+    return True
 
-    current_gaps = calculate_gaps(timetable)
-    iterations = 0
+def generate_initial_timetable():
+    for theory_time in ['morning', 'evening']:
+        lab_time = 'evening' if theory_time == 'morning' else 'morning'
+        timetable = {}
+        schedule = {}
+        failed = False
+        
+        # Schedule theory courses
+        theory_courses = [course for course in COURSES if course not in LAB_TO_THEORY]
+        for course in theory_courses:
+            slot_options = [opt for opt in COURSES[course] if slot_in_time(opt, theory_time)]
+            if not slot_options:
+                failed = True
+                break
+            random.shuffle(slot_options)
+            for slot_option in slot_options:
+                times = parse_slot_times(slot_option.split('+'))
+                if not schedule_conflict(schedule, times):
+                    timetable[course] = slot_option
+                    add_to_schedule(schedule, times)
+                    break
+            else:
+                failed = True
+                break
+        
+        if failed:
+            continue  # Try the other theory_time
 
+        # Schedule lab courses
+        lab_courses = [course for course in COURSES if course in LAB_TO_THEORY]
+        for course in lab_courses:
+            slot_options = [opt for opt in COURSES[course] if slot_in_time(opt, lab_time)]
+            if not slot_options:
+                failed = True
+                break
+            random.shuffle(slot_options)
+            for slot_option in slot_options:
+                times = parse_slot_times(slot_option.split('+'))
+                if not schedule_conflict(schedule, times):
+                    timetable[course] = slot_option
+                    add_to_schedule(schedule, times)
+                    break
+            else:
+                failed = True
+                break
+        
+        if not failed:
+            return timetable, schedule
+    
+    return None, None
+
+def hill_climbing(timetable, schedule):
+    current_timetable = copy.deepcopy(timetable)
+    current_schedule = copy.deepcopy(schedule)
+    current_cost = compute_gaps(current_schedule)
+    print(f"Initial number of 10-minute gaps: {current_cost}")
+    iteration = 0
     while True:
-        iterations += 1
-        neighbors = get_neighbors(timetable)
+        neighbors = []
+        for course in current_timetable:
+            # Skip if course has only one slot option
+            if len(COURSES[course]) <= 1:
+                continue
+            current_slot_option = current_timetable[course]
+            for slot_option in COURSES[course]:
+                if slot_option != current_slot_option:
+                    # Check time of day constraint
+                    if course in LAB_TO_THEORY:
+                        # Lab course
+                        theory_course = LAB_TO_THEORY[course]
+                        theory_slot_option = current_timetable[theory_course]
+                        if slot_in_time(theory_slot_option, 'morning'):
+                            desired_lab_time = 'evening'
+                        else:
+                            desired_lab_time = 'morning'
+                        if not slot_in_time(slot_option, desired_lab_time):
+                            continue
+                    else:
+                        # Theory course
+                        if not slot_in_time(slot_option, 'morning') and not slot_in_time(slot_option, 'evening'):
+                            continue
+                    new_timetable = copy.deepcopy(current_timetable)
+                    new_schedule = copy.deepcopy(current_schedule)
+                    # Remove current times
+                    old_times = parse_slot_times(current_slot_option.split('+'))
+                    remove_from_schedule(new_schedule, old_times)
+                    # Add new times
+                    new_times = parse_slot_times(slot_option.split('+'))
+                    if not schedule_conflict(new_schedule, new_times):
+                        new_timetable[course] = slot_option
+                        add_to_schedule(new_schedule, new_times)
+                        cost = compute_gaps(new_schedule)
+                        neighbors.append((cost, new_timetable, new_schedule))
         if not neighbors:
             break
-
-        neighbor_gaps = []
-        for neighbor in neighbors:
-            gaps = calculate_gaps(neighbor)
-            neighbor_gaps.append((gaps, neighbor))
-
-        # Find the neighbor with the least gaps
-        neighbor_gaps.sort(key=lambda x: x[0])
-        best_gap, best_timetable = neighbor_gaps[0]
-
-        if best_gap < current_gaps:
-            timetable = best_timetable
-            current_gaps = best_gap
-            print(f"Iteration {iterations}: Found better timetable with {current_gaps} gaps.")
+        neighbors.sort(key=lambda x: x[0])
+        best_neighbor = neighbors[0]
+        if best_neighbor[0] < current_cost:
+            current_cost = best_neighbor[0]
+            current_timetable = best_neighbor[1]
+            current_schedule = best_neighbor[2]
+            iteration += 1
+            print(f"Iteration {iteration}: Number of 10-minute gaps: {current_cost}")
         else:
             break
+    return current_timetable, current_schedule
 
-    print(f"Final timetable has {current_gaps} gaps after {iterations} iterations.")
-    return timetable
+def print_timetable(timetable, schedule):
+    print("\nOptimized Timetable:")
+    for course, slot_option in timetable.items():
+        times = parse_slot_times(slot_option.split('+'))
+        print(f"{course}:")
+        for day, start, end in sorted(times):
+            print(f"  {day}: {start} - {end}")
+    total_gaps = compute_gaps(schedule)
+    print(f"Total number of 10-minute gaps: {total_gaps}")
 
-def get_neighbors(timetable):
-    """Generates neighboring timetables by swapping lab slot options."""
-    neighbors = []
-    for course in COURSES:
-        if 'LAB' in course:
-            current_slots = [timing for timing in timetable.values() for timing in timing if timing[3] == course]
-            current_option = None
-            for option in COURSES[course]:
-                slots = option.split('+')
-                slot_timings = []
-                for slot in slots:
-                    slot_timings.extend(get_slot_timings(slot))
-                if all(any(t[1] == timing[1] and t[0] == timing[0] for t in current_slots) for timing in slot_timings):
-                    current_option = option
-                    break
-
-            other_options = [opt for opt in COURSES[course] if opt != current_option]
-            for option in other_options:
-                new_timetable = copy.deepcopy(timetable)
-                # Remove current lab timings
-                for day in DAYS:
-                    new_timetable[day] = [t for t in new_timetable.get(day, []) if t[3] != course]
-                # Try assigning new lab slot
-                slots = option.split('+')
-                course_timings = []
-                conflict = False
-                for slot in slots:
-                    slot_timings = get_slot_timings(slot)
-                    if not slot_timings:
-                        conflict = True
-                        break
-                    # Check for conflicts
-                    if is_conflict(new_timetable, [(t[0], t[1], t[2], course) for t in slot_timings]):
-                        conflict = True
-                        break
-                    course_timings.extend([(t[0], t[1], t[2], course) for t in slot_timings])
-                if conflict:
-                    continue
-                # No conflict, add to timetable
-                for timing in course_timings:
-                    new_timetable.setdefault(timing[0], []).append(timing)
-                neighbors.append(new_timetable)
-    return neighbors
-
-def print_timetable(timetable):
-    """Prints the timetable in a readable format."""
-    for day in DAYS:
-        print(f"\n{day}:")
-        day_schedule = timetable.get(day, [])
-        if not day_schedule:
-            print("  No classes scheduled.")
-            continue
-        # Sort the day's schedule
-        day_schedule.sort(key=lambda x: time_to_minutes(x[1]))
-        for entry in day_schedule:
-            print(f"  {entry[1]} - {entry[2]}: {entry[3]}")
-
-if __name__ == "__main__":
-    final_timetable = hill_climbing()
-    if final_timetable:
-        print_timetable(final_timetable)
+# Generate initial timetable
+timetable, schedule = generate_initial_timetable()
+if timetable:
+    # Optimize timetable using hill climbing
+    optimized_timetable, optimized_schedule = hill_climbing(timetable, schedule)
+    # Print the optimized timetable
+    print_timetable(optimized_timetable, optimized_schedule)
+else:
+    print("Failed to generate an initial timetable.")
